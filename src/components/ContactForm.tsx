@@ -21,9 +21,9 @@ import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
-  phone: z.string().min(7, { message: "El teléfono debe ser válido." }),
+  phone: z.string().optional(),
   service: z.string().min(2, { message: "El servicio debe tener al menos 2 caracteres." }),
-  schedule: z.string().min(2, { message: "El horario debe ser válido." }),
+  schedule: z.string().optional(),
 });
 
 interface ContactFormProps {
@@ -51,13 +51,13 @@ export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) 
         await updateDoc(contactRef, {
           ...values,
         });
-        toast({ title: "Contacto actualizado", description: "El contacto se ha actualizado correctamente." });
+        toast({ title: "Guardado", description: "El contacto se ha actualizado correctamente." });
       } else {
         await addDoc(collection(db, "contacts"), {
           ...values,
           createdAt: Date.now(),
         });
-        toast({ title: "Contacto agregado", description: "El nuevo contacto se ha guardado correctamente." });
+        toast({ title: "Guardado", description: "El nuevo contacto se ha guardado correctamente." });
       }
       onSuccess();
     } catch (error) {
