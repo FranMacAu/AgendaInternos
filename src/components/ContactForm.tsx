@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -15,14 +16,16 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Contact } from "@/types/contact";
-import { db } from "@/lib/firebase";
+import { useFirestore } from "@/firebase";
 import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 const formSchema = z.object({
-  name: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
+  name: z.string().min(2, { message: "El nombre es obligatorio." }),
   phone: z.string().optional(),
-  service: z.string().min(2, { message: "El servicio debe tener al menos 2 caracteres." }),
+  service: z.string().min(2, { message: "Especifica el servicio." }),
   schedule: z.string().optional(),
 });
 
@@ -34,6 +37,8 @@ interface ContactFormProps {
 
 export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) {
   const { toast } = useToast();
+  const db = useFirestore();
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -44,29 +49,41 @@ export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) 
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      if (contact) {
-        const contactRef = doc(db, "contacts", contact.id);
-        await updateDoc(contactRef, {
-          ...values,
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!db) return;
+
+    if (contact) {
+      const docRef = doc(db, "contacts", contact.id);
+      updateDoc(docRef, { ...values })
+        .then(() => {
+          toast({ title: "Actualizado", description: "Cambios guardados." });
+          onSuccess();
+        })
+        .catch(async () => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: values,
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
-        toast({ title: "Guardado", description: "El contacto se ha actualizado correctamente." });
-      } else {
-        await addDoc(collection(db, "contacts"), {
-          ...values,
-          createdAt: Date.now(),
+    } else {
+      const contactsCol = collection(db, "contacts");
+      const data = { ...values, createdAt: Date.now() };
+      
+      addDoc(contactsCol, data)
+        .then(() => {
+          toast({ title: "Creado", description: "Nuevo contacto en la agenda." });
+          onSuccess();
+        })
+        .catch(async () => {
+          const permissionError = new FirestorePermissionError({
+            path: contactsCol.path,
+            operation: 'create',
+            requestResourceData: data,
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
-        toast({ title: "Guardado", description: "El nuevo contacto se ha guardado correctamente." });
-      }
-      onSuccess();
-    } catch (error) {
-      console.error("Error saving contact:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Hubo un problema al guardar el contacto.",
-      });
     }
   }
 
@@ -78,9 +95,9 @@ export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) 
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nombre completo</FormLabel>
+              <FormLabel>Nombre</FormLabel>
               <FormControl>
-                <Input placeholder="Ej: Juan Pérez" {...field} />
+                <Input placeholder="Nombre de la persona o empresa" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -93,7 +110,7 @@ export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) 
             <FormItem>
               <FormLabel>Teléfono</FormLabel>
               <FormControl>
-                <Input placeholder="Ej: +54 9 11 1234-5678" {...field} />
+                <Input placeholder="+54 9..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -106,7 +123,7 @@ export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) 
             <FormItem>
               <FormLabel>Servicio</FormLabel>
               <FormControl>
-                <Input placeholder="Ej: Mantenimiento, Consultoría" {...field} />
+                <Input placeholder="Ej: Plomería, Diseño Web..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -117,19 +134,19 @@ export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) 
           name="schedule"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Horario</FormLabel>
+              <FormLabel>Horario (Opcional)</FormLabel>
               <FormControl>
-                <Input placeholder="Ej: Lunes a Viernes 9:00 - 18:00" {...field} />
+                <Input placeholder="Lunes a Viernes 9-18hs" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cerrar
           </Button>
-          <Button type="submit" className="bg-primary text-primary-foreground">
+          <Button type="submit" className="bg-primary">
             {contact ? "Actualizar" : "Guardar"}
           </Button>
         </div>

@@ -1,0 +1,42 @@
+
+{
+  "entities": {
+    "Contact": {
+      "title": "Contacto",
+      "description": "Un contacto profesional o servicio en la agenda.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nombre completo del contacto."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Número de teléfono de contacto."
+        },
+        "service": {
+          "type": "string",
+          "description": "Tipo de servicio que ofrece."
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Horario de atención o disponibilidad."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp de creación para ordenamiento."
+        }
+      },
+      "required": ["name", "service", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/contacts/{contactId}": {
+      "schema": "Contact",
+      "description": "Colección global de contactos de la agenda."
+    }
+  }
+}

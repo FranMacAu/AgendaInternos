@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -5,9 +6,11 @@ import { Contact } from "@/types/contact";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Phone, Briefcase, Clock, Pencil, Trash2 } from "lucide-react";
-import { db } from "@/lib/firebase";
+import { useFirestore } from "@/firebase";
 import { deleteDoc, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,19 +30,23 @@ interface ContactCardProps {
 
 export function ContactCard({ contact, onEdit }: ContactCardProps) {
   const { toast } = useToast();
+  const db = useFirestore();
 
-  const handleDelete = async () => {
-    try {
-      await deleteDoc(doc(db, "contacts", contact.id));
-      toast({ title: "Contacto eliminado", description: "El contacto se ha eliminado de la agenda." });
-    } catch (error) {
-      console.error("Error deleting contact:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo eliminar el contacto.",
+  const handleDelete = () => {
+    if (!db) return;
+    const docRef = doc(db, "contacts", contact.id);
+    
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Eliminado", description: "Contacto borrado de la nube." });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-    }
   };
 
   return (
@@ -70,15 +77,15 @@ export function ContactCard({ contact, onEdit }: ContactCardProps) {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Esto eliminará permanentemente al contacto de la agenda.
+                  El contacto se borrará permanentemente de los servidores de ContactVault.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Eliminar
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                  Borrar
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -88,7 +95,7 @@ export function ContactCard({ contact, onEdit }: ContactCardProps) {
       <CardContent className="grid gap-3 pt-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Phone className="h-4 w-4 text-accent" />
-          <span>{contact.phone}</span>
+          <span>{contact.phone || "Sin teléfono"}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Briefcase className="h-4 w-4 text-accent" />
@@ -96,7 +103,7 @@ export function ContactCard({ contact, onEdit }: ContactCardProps) {
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4 text-accent" />
-          <span>{contact.schedule}</span>
+          <span>{contact.schedule || "Sin horario"}</span>
         </div>
       </CardContent>
     </Card>
