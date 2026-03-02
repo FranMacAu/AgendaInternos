@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Contact } from "@/types/contact";
-import { useFirestore } from "@/firebase";
+// En lugar de import { useFirestore } from "@/firebase";
+import { db } from "@/lib/firebase"; // Importamos el que tiene tus claves reales
 import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -37,7 +38,6 @@ interface ContactFormProps {
 
 export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) {
   const { toast } = useToast();
-  const db = useFirestore();
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,40 +50,37 @@ export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) 
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!db) return;
+    console.log("Intentando guardar:", values); // LOG 1
+    if (!db) {
+      console.error("Error: La base de datos (db) es null"); // LOG 2
+      return;
+    };
+
+    onSuccess();
 
     if (contact) {
-      const docRef = doc(db, "contacts", contact.id);
-      updateDoc(docRef, { ...values })
-        .then(() => {
-          toast({ title: "Actualizado", description: "Cambios guardados." });
-          onSuccess();
-        })
-        .catch(async () => {
-          const permissionError = new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: values,
-          });
-          errorEmitter.emit('permission-error', permissionError);
+    const docRef = doc(db, "contacts", contact.id);
+    // Ejecutamos la actualización en segundo plano
+    updateDoc(docRef, { ...values });
+    toast({ title: "Actualizado", description: "Los cambios se están sincronizando." });
+  } else {
+    const contactsCol = collection(db, "contacts");
+    const data = { ...values, createdAt: Date.now() };
+    
+    // 2. Mandamos a guardar pero no bloqueamos la interfaz
+    addDoc(contactsCol, data)
+      .then(() => {
+        // El toast aparecerá igual aunque el form ya esté cerrado
+        toast({ title: "Creado", description: "Contacto guardado con éxito." });
+      })
+      .catch((error) => {
+        console.error("Error al guardar:", error);
+        toast({ 
+          variant: "destructive", 
+          title: "Error", 
+          description: "No se pudo guardar el contacto." 
         });
-    } else {
-      const contactsCol = collection(db, "contacts");
-      const data = { ...values, createdAt: Date.now() };
-      
-      addDoc(contactsCol, data)
-        .then(() => {
-          toast({ title: "Creado", description: "Nuevo contacto en la agenda." });
-          onSuccess();
-        })
-        .catch(async () => {
-          const permissionError = new FirestorePermissionError({
-            path: contactsCol.path,
-            operation: 'create',
-            requestResourceData: data,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-        });
+      });
     }
   }
 

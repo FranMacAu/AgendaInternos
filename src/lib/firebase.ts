@@ -2,12 +2,12 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "dummy-api-key",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "contactvault.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "contactvault-id",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "contactvault.appspot.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:123456789:web:abcdef"
+  apiKey: "AIzaSyCY8bLoEX7-zzkfhVHC69V-fRe_oO1o9IQ",
+  authDomain: "studio-2746222822-e5b7b.firebaseapp.com",
+  projectId: "studio-2746222822-e5b7b",
+  storageBucket: "studio-2746222822-e5b7b.firebasestorage.app",
+  messagingSenderId: "60067907758",
+  appId: "1:60067907758:web:c51f5ce562210d2624453f"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

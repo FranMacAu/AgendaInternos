@@ -2,8 +2,9 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useFirestore, useCollection } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
+import { useCollection } from "@/firebase"; // Mantenemos el hook de la colección
+import { db } from "@/lib/firebase"; // IMPORTAMOS LA CONEXIÓN DIRECTA CON TUS CLAVES
+import { collection, query, orderBy, CollectionReference } from "firebase/firestore";
 import { Contact } from "@/types/contact";
 import { ContactCard } from "@/components/ContactCard";
 import { ContactForm } from "@/components/ContactForm";
@@ -20,18 +21,21 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/toaster";
 
+
+
+
 export default function Home() {
-  const db = useFirestore();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | undefined>(undefined);
 
   const contactsQuery = useMemo(() => {
-    if (!db) return null;
     return query(collection(db, "contacts"), orderBy("createdAt", "desc"));
-  }, [db]);
 
-  const { data: contacts, loading } = useCollection<Contact>(contactsQuery);
+  }, []);
+
+  const { data: contacts, loading } = useCollection<Contact>(contactsQuery as any);
 
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
@@ -59,9 +63,9 @@ export default function Home() {
           <div className="space-y-1">
             <h1 className="text-3xl md:text-4xl font-headline font-bold text-primary flex items-center gap-3">
               <Users className="h-8 w-8 text-accent" />
-              ContactVault
+              Agenda de Internos
             </h1>
-            <p className="text-muted-foreground">Tu agenda profesional de contactos y servicios en la nube.</p>
+            <p className="text-muted-foreground">Soporte de Aplicaciones.</p>
           </div>
           <Button
             onClick={handleAdd}
