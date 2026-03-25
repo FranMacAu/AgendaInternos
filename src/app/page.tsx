@@ -2,15 +2,21 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useCollection } from "@/firebase"; // Mantenemos el hook de la colección
-import { db } from "@/lib/firebase"; // IMPORTAMOS LA CONEXIÓN DIRECTA CON TUS CLAVES
-import { collection, query, orderBy, CollectionReference } from "firebase/firestore";
+import { useCollection, useUser, useAuth } from "@/firebase"; 
+import { collection, query, orderBy } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { signOut } from "firebase/auth";
+
+// Componentes
 import { Contact } from "@/types/contact";
 import { ContactCard } from "@/components/ContactCard";
 import { ContactForm } from "@/components/ContactForm";
+import { Login } from "@/components/Login";
+
+// UI
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Users, LogOut } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,21 +27,21 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/toaster";
 
-
-
-
 export default function Home() {
-  
+  const { user, loading: authLoading } = useUser();
+  const auth = useAuth();
+  const db = useFirestore();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | undefined>(undefined);
 
   const contactsQuery = useMemo(() => {
+    if (!db) return null;
     return query(collection(db, "contacts"), orderBy("createdAt", "desc"));
+  }, [db]);
 
-  }, []);
-
-  const { data: contacts, loading } = useCollection<Contact>(contactsQuery as any);
+  const { data: contacts, loading: dataLoading } = useCollection<Contact>(contactsQuery as any);
 
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
@@ -56,6 +62,23 @@ export default function Home() {
     setIsFormOpen(true);
   };
 
+  const handleLogout = () => signOut(auth);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-muted-foreground animate-pulse font-medium">Verificando acceso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <main className="min-h-screen bg-background font-body p-4 md:p-8 lg:p-12">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -65,15 +88,26 @@ export default function Home() {
               <Users className="h-8 w-8 text-accent" />
               Agenda de Internos
             </h1>
-            <p className="text-muted-foreground">Soporte de Aplicaciones.</p>
+            <p className="text-muted-foreground">Soporte de Aplicaciones - ContactVault.</p>
           </div>
-          <Button
-            onClick={handleAdd}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all flex items-center gap-2 w-fit"
-          >
-            <Plus className="h-5 w-5" />
-            Agregar Contacto
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+                onClick={handleLogout}
+                variant="ghost"
+                className="text-muted-foreground hover:text-destructive transition-colors"
+                title="Cerrar sesión"
+            >
+                <LogOut className="h-5 w-5" />
+                <span className="hidden sm:inline ml-2">Salir</span>
+            </Button>
+            <Button
+                onClick={handleAdd}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
+            >
+                <Plus className="h-5 w-5" />
+                Agregar Contacto
+            </Button>
+          </div>
         </div>
 
         <div className="relative">
@@ -88,7 +122,7 @@ export default function Home() {
           />
         </div>
 
-        {loading ? (
+        {dataLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="space-y-3">

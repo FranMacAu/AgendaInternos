@@ -16,12 +16,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Contact } from "@/types/contact";
-// En lugar de import { useFirestore } from "@/firebase";
-import { db } from "@/lib/firebase"; // Importamos el que tiene tus claves reales
+import { useFirestore } from "@/firebase";
 import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "El nombre es obligatorio." }),
@@ -38,6 +35,7 @@ interface ContactFormProps {
 
 export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) {
   const { toast } = useToast();
+  const db = useFirestore();
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,37 +47,26 @@ export function ContactForm({ contact, onSuccess, onCancel }: ContactFormProps) 
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("Intentando guardar:", values); // LOG 1
-    if (!db) {
-      console.error("Error: La base de datos (db) es null"); // LOG 2
-      return;
-    };
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!db) return;
 
-    onSuccess();
-
-    if (contact) {
-    const docRef = doc(db, "contacts", contact.id);
-    // Ejecutamos la actualización en segundo plano
-    updateDoc(docRef, { ...values });
-    toast({ title: "Actualizado", description: "Los cambios se están sincronizando." });
-  } else {
-    const contactsCol = collection(db, "contacts");
-    const data = { ...values, createdAt: Date.now() };
-    
-    // 2. Mandamos a guardar pero no bloqueamos la interfaz
-    addDoc(contactsCol, data)
-      .then(() => {
-        // El toast aparecerá igual aunque el form ya esté cerrado
+    try {
+      if (contact) {
+        const docRef = doc(db, "contacts", contact.id);
+        await updateDoc(docRef, { ...values });
+        toast({ title: "Actualizado", description: "Los cambios se guardaron con éxito." });
+      } else {
+        const contactsCol = collection(db, "contacts");
+        await addDoc(contactsCol, { ...values, createdAt: Date.now() });
         toast({ title: "Creado", description: "Contacto guardado con éxito." });
-      })
-      .catch((error) => {
-        console.error("Error al guardar:", error);
-        toast({ 
-          variant: "destructive", 
-          title: "Error", 
-          description: "No se pudo guardar el contacto." 
-        });
+      }
+      onSuccess();
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: "No tienes permisos para realizar esta acción." 
       });
     }
   }
